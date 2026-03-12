@@ -1,6 +1,6 @@
 # AFM Vector Search
 
-A multimodal similarity search system for Atomic Force Microscopy (AFM) data. The goal is to enable researchers to query a database of AFM scans using either an image (upload a `.ibw` file) or natural language (describe a surface, material, or imaging condition) and retrieve the most similar scans from the dataset.
+A multimodal similarity search system for Atomic Force Microscopy (AFM) data. The goal is to enable researchers to query a database of AFM scans using either an image (upload a `.ibw` file) or natural language (describe a surface, material set, or imaging condition) and retrieve the most similar scans from the dataset.
 
 ## How It Works
 
@@ -13,7 +13,7 @@ AFM scans (`.ibw` files) are processed through an ingestion pipeline that extrac
     │                        →   text embedding  (512-d)
     │                        →   structured metadata
     │
-    └─► Vector Database (Qdrant / Neo4j)
+    └─► Vector Database (Neo4j)
             │
             └─► Similarity Search
                     ├─► Image query  →  find visually similar scans
@@ -75,6 +75,6 @@ pip install git+https://github.com/openai/CLIP.git
 ## Roadmap
 
 - [ ] `afm_ingest.py` — batch ingestion script (converted from notebook)
-- [ ] `02_vector_db_ingestion.ipynb` — populate Qdrant with a folder of scans
+- [ ] `02_vector_db_ingestion.ipynb` — populate Neo4j with a folder of scans
 - [ ] `03_similarity_search.ipynb` — query interface (image + text)
 - [ ] Web UI for drag-and-drop search
