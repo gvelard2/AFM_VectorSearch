@@ -1,0 +1,17 @@
+{
+  "file_path": "GV0130001.ibw",
+  "ingestion_timestamp": "2026-03-12T09:57:44.804256",
+  "user_text": "SrTiO3 thin film on SrTiO3 substrate, tapping mode, ambient conditions",
+  "full_text_embedded": "SrTiO3 thin film on SrTiO3 substrate, tapping mode, ambient conditions. AFM image. Scan size: 2.000 \u03bcm. Resolution: 256x256 pixels. Imaging mode: AC Mode. Scan rate: 1.0016. Date: 2016-11-15. Operator: unknown.",
+  "image_text_similarity": 0.32549113035202026,
+  "clip_model": "ViT-B/32",
+  "embedding_dim": 512,
+  "metadata_structured": {
+    "scan_size": "2.000 \u03bcm",
+    "resolution": "256x256",
+    "imaging_mode": "AC Mode",
+    "scan_rate": "1.0016",
+    "date": "2016-11-15",
+    "operator": "unknown"
+  }
+}
