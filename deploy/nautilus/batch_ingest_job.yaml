@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: afm-batch-ingest
+  namespace: your-namespace   # <-- replace with your Nautilus namespace
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ingestion
+          image: ghcr.io/<your-org>/afm-search-ingestion:latest
+          imagePullPolicy: Always
+          command:
+            - python
+            - -m
+            - ingestion.run
+            - --batch-dir
+            - /data
+            - --text
+            - "$(SAMPLE_TEXT)"
+          env:
+            - name: SAMPLE_TEXT
+              value: "SrTiO3 thin film on STO substrate"   # override per job
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: afm-search-secrets
+                  key: db-url
+            - name: MODEL_NAME
+              value: microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
+            - name: MODEL_VERSION
+              value: "1.0.0"
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+              memory: 16Gi
+              cpu: "4"
+            requests:
+              nvidia.com/gpu: 1
+              memory: 8Gi
+              cpu: "2"
+          volumeMounts:
+            - name: afm-data
+              mountPath: /data
+      volumes:
+        - name: afm-data
+          persistentVolumeClaim:
+            claimName: afm-ceph-pvc   # Ceph-backed PVC — see pvc-ceph.yaml
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule

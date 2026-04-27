@@ -1,80 +1,62 @@
-# AFM Vector Search
+# AFM Similarity Search
 
-A multimodal similarity search system for Atomic Force Microscopy (AFM) data. The goal is to enable researchers to query a database of AFM scans using either an image (upload a `.ibw` file) or natural language (describe a surface, material set, or imaging condition) and retrieve the most similar scans from the dataset.
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com)
 
-## How It Works
+A multimodal similarity search tool for Atomic Force Microscopy (AFM) images. Researchers upload an `.ibw` file and a free-text description (e.g. "SrTiO₃ thin film on SrTiO₃ substrate, PFM lateral channel") and get back the most visually and semantically similar AFM images from a shared corpus.
 
-AFM scans (`.ibw` files) are processed through an ingestion pipeline that extracts height map data, parses instrument metadata, and generates embeddings using OpenAI's CLIP model. Both an image embedding (from the preprocessed height map) and a text embedding (from structured metadata + user-supplied context) are stored in a vector database. At query time, a new scan or text query is embedded and compared against the database using cosine similarity.
+## Architecture overview
 
-```
-.ibw files
-    │
-    ├─► Ingestion Pipeline   →   image embedding (512-d)
-    │                        →   text embedding  (512-d)
-    │                        →   structured metadata
-    │
-    └─► Vector Database (Neo4j)
-            │
-            └─► Similarity Search
-                    ├─► Image query  →  find visually similar scans
-                    └─► Text query   →  find scans matching a description
-```
+Raw `.ibw` files are parsed with `igor2`/`afmformats` and converted to numpy arrays. The height channel is plane-leveled, Gaussian-smoothed, and normalized to a PIL image. BiomedCLIP (trained on 15 M scientific image-text pairs) encodes both the image and the researcher-supplied text into 512-dimensional embeddings. A MatBERT NER pipeline extracts structured metadata fields (material, substrate, technique, scan size) from the free-text description. Image and text embeddings are fused at a tunable 60/40 ratio and stored in PostgreSQL with the pgvector extension (HNSW index). At query time the same fusion pipeline runs on the uploaded file and description, and the top-k nearest neighbors are returned with their metadata. The FastAPI backend exposes `/ingest` and `/search` endpoints; a Streamlit app provides a browser UI for demos.
 
-## Repository Structure
+Batch ingestion jobs run on [Nautilus NRP](https://nationalresearchplatform.org/) as Kubernetes Jobs with GPU acceleration. Persistent storage uses a Ceph PVC. See `deploy/nautilus/` for standalone job specs and `deploy/helm/` for the full Helm chart.
 
-```
-AFM_VectorSearch/
-├── AFM_Ingestion_Pipeline.ipynb   # Stage 1: ingestion pipeline (see below)
-├── GV0130001.ibw                  # Sample AFM scan (Asylum Research format)
-├── GV0130001_ingestion.npz        # Output embeddings from sample scan
-├── GV0130001_metadata.json        # Output structured metadata from sample scan
-└── README.md
-```
+## Quick start
 
-## Stage 1 — Ingestion Pipeline (`AFM_Ingestion_Pipeline.ipynb`)
-
-This notebook is the first stage of the pipeline. It is intentionally structured as a **visualization notebook** — every processing step is rendered with plots and diagnostic output so the logic can be inspected and validated before being converted into a production script.
-
-**Once validated, this notebook will be translated into `afm_ingest.py` — a standalone executable script that batch-processes a folder of `.ibw` files without any visualization overhead.**
-
-### What the notebook does
-
-| Stage | Description |
-|---|---|
-| **Load** | Read a `.ibw` binary wave file using `igor2`, extract all 4 channels (Height, Deflection, Amplitude, Phase) and the raw metadata note |
-| **Visualize raw channels** | Display all 4 channels side by side to confirm the file loaded correctly |
-| **Parse metadata** | Decode the IBW note block into a structured dictionary; extract key fields (scan size, rate, imaging mode, date, operator) |
-| **Build semantic text** | Combine parsed metadata with a user-supplied sample description into a single text string for embedding |
-| **Preprocess height map** | Plane-level → Gaussian smooth → percentile normalize → resize to 224×224 RGB (CLIP input format) |
-| **Visualize preprocessing** | Show each preprocessing step with histograms to confirm normalization |
-| **Image embedding** | Pass the preprocessed PIL image through CLIP ViT-B/32 image encoder → 512-d unit vector |
-| **Text embedding** | Tokenize and encode the semantic text string through CLIP text encoder → 512-d unit vector |
-| **Similarity probe** | Compare the image embedding against several test text queries to validate semantic alignment |
-| **Package record** | Bundle embeddings + metadata into a single ingestion record |
-| **Save outputs** | Write `_ingestion.npz` (embeddings) and `_metadata.json` (structured metadata) for the next pipeline stage |
-
-### Output files per scan
-
-- `<filename>_ingestion.npz` — NumPy archive containing `image_embedding` (512,), `text_embedding` (512,), and `preprocessed_array` (224×224)
-- `<filename>_metadata.json` — JSON with structured metadata, user text, cosine similarity score, and provenance info
-
-## Environment Setup
-
-Dependencies are managed in a dedicated virtual environment (`vsearch_env`).
+### Option 1 — Docker Compose (local)
 
 ```bash
-# Activate the environment
-C:\Users\<you>\envs\vsearch_env\Scripts\activate
-
-# Key dependencies
-pip install numpy pandas matplotlib scipy scikit-image Pillow igor2
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-pip install git+https://github.com/openai/CLIP.git
+git clone https://github.com/<your-org>/afm-search.git
+cd afm-search
+cp .env.example .env          # fill in DB_URL and API_KEY
+docker compose up --build
 ```
 
-## Roadmap
+- API docs: http://localhost:8000/docs
+- UI:       http://localhost:8501
 
-- [ ] `afm_ingest.py` — batch ingestion script (converted from notebook)
-- [ ] `02_vector_db_ingestion.ipynb` — populate Neo4j with a folder of scans
-- [ ] `03_similarity_search.ipynb` — query interface (image + text)
-- [ ] Web UI for drag-and-drop search
+### Option 2 — Helm on Kubernetes
+
+```bash
+helm install afm-search ./deploy/helm/afm-search -f deploy/helm/afm-search/values.yaml
+```
+
+> **PyTorch:** Docker images install PyTorch automatically. For local dev, install it manually per the [official guide](https://pytorch.org/get-started/locally/) before running `pip install -r requirements.txt`.
+
+## Data
+
+`data/` contains prototype `.ibw` files collected on a Bruker/Asylum AFM. File names encode the sample ID and scan index (e.g. `GV013_0001.ibw`). See [`data/README.md`](data/README.md) for provenance details and [`DATA_LICENSE.md`](DATA_LICENSE.md) for licensing terms.
+
+To add your own files, drop `.ibw` files into `data/` and run:
+
+```bash
+python -m ingestion.run --batch-dir data/ --text "your sample description"
+```
+
+## Contributing
+
+1. Fork the repo and create a feature branch.
+2. Install pre-commit hooks: `pre-commit install`
+3. Run the test suite: `pytest`
+4. Open a PR — CI must pass (ruff lint, mypy type check, pytest) before merge.
+
+See [`docs/FORK_GUIDE.md`](docs/FORK_GUIDE.md) if you are adapting this system for your own lab.
+
+## Citation
+
+If you use this tool in published research, please cite using the metadata in [`CITATION.cff`](CITATION.cff).
+
+## License
+
+Code: [MIT](LICENSE). Data: see [DATA_LICENSE.md](DATA_LICENSE.md).

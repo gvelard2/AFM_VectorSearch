@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-ingest
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "1"
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ingestion
+          image: "{{ .Values.image.ingestion }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - python
+            - -m
+            - ingestion.run
+            - --batch-dir
+            - /data
+            - --text
+            - "$(SAMPLE_TEXT)"
+          env:
+            - name: SAMPLE_TEXT
+              value: ""   # Override at install time with --set
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: db-url
+            - name: MODEL_NAME
+              value: {{ .Values.model.name | quote }}
+            - name: MODEL_VERSION
+              value: {{ .Values.model.version | quote }}
+          resources:
+            limits:
+              {{ .Values.gpu.type }}: {{ .Values.gpu.count }}
+          volumeMounts:
+            - name: afm-data
+              mountPath: /data
+      volumes:
+        - name: afm-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.ceph.claimName }}
+      tolerations:
+        - key: {{ .Values.gpu.type }}
+          operator: Exists
+          effect: NoSchedule

@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        name: Strip Jupyter notebook output before commit
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        name: Ruff lint
+        args: [--fix]
+      - id: ruff-format
+        name: Ruff format

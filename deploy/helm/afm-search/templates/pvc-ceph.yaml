@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.ceph.claimName }}
+spec:
+  accessModes:
+    - {{ .Values.storage.ceph.accessMode }}
+  storageClassName: {{ .Values.storage.ceph.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.ceph.size }}

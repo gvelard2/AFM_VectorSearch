@@ -1,0 +1,46 @@
+name: vsearch_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      # Web framework
+      - fastapi
+      - "uvicorn[standard]"
+      - pydantic
+      - pydantic-settings
+      - python-multipart
+
+      # Database
+      - sqlalchemy
+      - asyncpg
+      - pgvector
+
+      # ML / embeddings
+      # NOTE: Install PyTorch separately before this env:
+      #   https://pytorch.org/get-started/locally/
+      - transformers
+      - open_clip_torch
+      - Pillow
+
+      # AFM file parsing
+      - igor2
+      - afmformats
+
+      # Numerics
+      - numpy
+      - scipy
+
+      # UI
+      - streamlit
+
+      # Dev / CI
+      - pre-commit
+      - ruff
+      - mypy
+      - pytest
+      - pytest-asyncio
+      - httpx
+      - nbstripout

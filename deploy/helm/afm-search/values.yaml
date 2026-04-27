@@ -1,0 +1,50 @@
+# Default values for afm-search Helm chart.
+# Override with: helm install afm-search ./deploy/helm/afm-search -f my-values.yaml
+
+replicaCount:
+  api: 1
+
+image:
+  api: ghcr.io/<your-org>/afm-search-api
+  ingestion: ghcr.io/<your-org>/afm-search-ingestion
+  tag: latest
+  pullPolicy: Always
+
+model:
+  name: microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
+  version: "1.0.0"
+
+# 60/40 image/text fusion weight (must match API default)
+search:
+  imageWeight: 0.6
+  topKDefault: 5
+
+gpu:
+  type: nvidia.com/gpu
+  count: 1
+
+database:
+  host: postgres
+  port: 5432
+  name: afm
+  # Set DB credentials via a K8s Secret (name: afm-search-secrets, key: db-url)
+  existingSecret: afm-search-secrets
+
+service:
+  api:
+    type: ClusterIP
+    port: 8000
+  streamlit:
+    type: ClusterIP
+    port: 8501
+
+ingress:
+  enabled: false
+  # host: afm-search.yourdomain.edu
+
+storage:
+  ceph:
+    claimName: afm-ceph-pvc
+    storageClassName: rook-ceph-block
+    size: 100Gi
+    accessMode: ReadWriteMany

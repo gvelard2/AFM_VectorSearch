@@ -1,0 +1,24 @@
+# Dockerfile for the FastAPI API service and Streamlit UI.
+# PyTorch CPU wheel is used for portability; swap the index URL for a GPU build.
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps for afmformats / igor2 / scipy
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch CPU before other deps (see requirements.txt comment)
+RUN pip install --no-cache-dir \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

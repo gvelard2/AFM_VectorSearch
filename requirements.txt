@@ -1,0 +1,47 @@
+# AFM Similarity Search — pip dependencies
+#
+# NOTE: PyTorch is NOT listed here because the correct wheel depends on your
+# platform and CUDA version. Install it first, following the official guide:
+#   https://pytorch.org/get-started/locally/
+#
+# Example (CUDA 12.1):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Example (CPU only):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Web framework
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+
+# Database
+sqlalchemy
+asyncpg
+pgvector
+
+# ML / embeddings (requires torch pre-installed — see note above)
+transformers
+open_clip_torch
+Pillow
+
+# AFM file parsing
+igor2
+afmformats
+
+# Numerics
+numpy
+scipy
+
+# UI
+streamlit
+
+# Dev / CI
+pre-commit
+ruff
+mypy
+pytest
+pytest-asyncio
+httpx
+nbstripout

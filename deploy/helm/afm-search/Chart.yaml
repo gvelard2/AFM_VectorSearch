@@ -1,0 +1,9 @@
+apiVersion: v2
+name: afm-search
+description: Multimodal AFM similarity search — API, ingestion, and pgvector DB
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: "<Your Name>"
+    email: "<your@email.edu>"

@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software in published research, please cite it as below."
+title: "AFM Similarity Search"
+abstract: >
+  A multimodal similarity search tool for Atomic Force Microscopy (AFM) images,
+  combining BiomedCLIP image embeddings, MatBERT NER metadata extraction, and
+  PostgreSQL + pgvector for retrieval.
+version: 0.1.0
+date-released: "2025-01-01"
+license: MIT
+repository-code: "https://github.com/<your-org>/afm-search"
+authors:
+  - family-names: "<LastName>"
+    given-names: "<FirstName>"
+    affiliation: "<Institution>"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+keywords:
+  - atomic force microscopy
+  - similarity search
+  - multimodal embeddings
+  - materials science
+  - BiomedCLIP
+  - pgvector

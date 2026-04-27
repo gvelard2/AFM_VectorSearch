@@ -1,0 +1,26 @@
+# Dockerfile for batch ingestion jobs on Nautilus NRP.
+# Uses a CUDA base image to support GPU-accelerated BiomedCLIP inference.
+# Adjust CUDA version to match the Nautilus node pool (check with `nvidia-smi`).
+
+FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+# torch is already present in the base image — install the rest
+RUN pip install --no-cache-dir \
+    fastapi uvicorn[standard] pydantic pydantic-settings \
+    sqlalchemy asyncpg pgvector \
+    transformers open_clip_torch Pillow \
+    igor2 afmformats \
+    numpy scipy
+
+COPY . .
+
+# Default entrypoint for batch ingestion — override at K8s Job level
+ENTRYPOINT ["python", "-m", "ingestion.run"]
+CMD ["--help"]
