@@ -19,6 +19,7 @@ python-multipart
 # Database
 sqlalchemy
 asyncpg
+psycopg2-binary
 pgvector
 
 # ML / embeddings (requires torch pre-installed — see note above)
