@@ -13,13 +13,13 @@ from typing import Annotated
 from fastapi import Depends
 
 from api.core.config import settings
-from services.encoder import CLIPEncoder
+from services.encoder import CLIPEncoder, get_encoder as _get_encoder
 from services.vector_store import VectorStore
 
 
 def get_encoder() -> CLIPEncoder:
     """Return the process-level CLIPEncoder singleton."""
-    return CLIPEncoder.instance()
+    return _get_encoder()
 
 
 @functools.lru_cache(maxsize=1)
