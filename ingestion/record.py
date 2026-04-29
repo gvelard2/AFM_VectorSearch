@@ -23,24 +23,32 @@ def build_record(
 
     Args:
         sample_id: Unique identifier for this scan (e.g. ``"GV013_0001"``).
-        embedding: 1-D float32 numpy array — the fused image+text embedding
-            produced by ``CLIPEncoder``. Shape must be ``(512,)``.
+        embedding: 1-D float32 numpy array of shape ``(512,)`` — the fused
+            image+text embedding produced by ``CLIPEncoder.fuse()``.
         metadata: Structured metadata extracted by the NER pipeline.
         filename: Original ``.ibw`` filename (basename only, no path).
-        model_version: Identifier of the embedding model used, e.g.
+        model_version: Identifier of the embedding model, e.g.
             ``"microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"``.
-            Required on every record to support future model migrations.
+            Stored on every record to support future model migrations.
 
     Returns:
-        A dict with keys: ``sample_id``, ``filename``, ``model_version``,
-        ``embedding`` (as a Python list), and all ``AFMMetadata`` fields
-        flattened to the top level.
+        A dict with keys ``sample_id``, ``filename``, ``model_version``,
+        ``embedding`` (as a float32 numpy array for VectorStore.upsert),
+        and all ``AFMMetadata`` fields flattened to the top level.
 
     Raises:
         ValueError: If *embedding* does not have shape ``(512,)``.
     """
-    raise NotImplementedError(
-        "build_record: validate embedding shape, convert embedding to list, "
-        "merge metadata.model_dump() into the record dict alongside "
-        "sample_id, filename, and model_version."
-    )
+    if embedding.shape != (512,):
+        raise ValueError(
+            f"Expected embedding shape (512,), got {embedding.shape}"
+        )
+
+    record = {
+        "sample_id":     sample_id,
+        "filename":      filename,
+        "model_version": model_version,
+        "embedding":     embedding.astype(np.float32),
+    }
+    record.update(metadata.model_dump())
+    return record

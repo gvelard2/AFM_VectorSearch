@@ -132,10 +132,24 @@ class VectorStore:
         return conn
 
     def _ensure_schema(self) -> None:
-        """Create the extension, table, and HNSW index if they don't exist."""
+        """Create the pgvector extension, table, and HNSW index if they don't exist.
+
+        The extension must be created in a plain connection (without register_vector)
+        first, because register_vector requires the vector type to already exist in
+        the database. After the extension is committed we can use _connect() normally.
+        """
+        # Step 1: create extension in a plain connection (no register_vector)
+        bootstrap = psycopg2.connect(self._dsn)
+        try:
+            with bootstrap.cursor() as cur:
+                cur.execute(_CREATE_EXTENSION)
+            bootstrap.commit()
+        finally:
+            bootstrap.close()
+
+        # Step 2: now that the vector type exists, create table + index normally
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(_CREATE_EXTENSION)
                 cur.execute(_CREATE_TABLE)
                 cur.execute(_CREATE_INDEX)
             conn.commit()
