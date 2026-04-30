@@ -44,8 +44,46 @@ with tab_search:
         if not query_file and not query_text:
             st.error("Provide at least one of: query file or description text.")
         else:
-            # TODO: implement search call to POST /search
-            st.warning("Search endpoint integration not yet implemented.")
+            with st.spinner("Searching..."):
+                form_data = {"top_k": str(top_k), "image_weight": str(image_weight)}
+                if query_text:
+                    form_data["text"] = query_text
+                files = {"file": (query_file.name, query_file.getvalue(), "application/octet-stream")} if query_file else {}
+                try:
+                    resp = requests.post(
+                        f"{API_BASE_URL}/search",
+                        headers=HEADERS,
+                        data=form_data,
+                        files=files,
+                        timeout=60,
+                    )
+                    resp.raise_for_status()
+                    results = resp.json()["results"]
+                except requests.HTTPError as e:
+                    st.error(f"API error {e.response.status_code}: {e.response.text}")
+                    results = []
+                except requests.RequestException as e:
+                    st.error(f"Could not reach API at {API_BASE_URL}: {e}")
+                    results = []
+
+            if results:
+                st.success(f"{len(results)} result(s) found.")
+                for hit in results:
+                    meta = hit["metadata"]
+                    with st.expander(f"{hit['sample_id']}  —  score {hit['score']:.4f}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown(f"**Filename:** `{hit['filename']}`")
+                            st.markdown(f"**Score:** `{hit['score']:.4f}`")
+                            st.markdown(f"**Model:** `{hit['model_version']}`")
+                        with col2:
+                            st.markdown(f"**Material:** {meta.get('material') or '—'}")
+                            st.markdown(f"**Substrate:** {meta.get('substrate') or '—'}")
+                            st.markdown(f"**Technique:** {meta.get('technique') or '—'}")
+                            st.markdown(f"**Scan size:** {meta.get('scan_size_um') or '—'} µm")
+                        st.caption(meta.get("raw_text", ""))
+            elif results is not None:
+                st.info("No results returned.")
 
 # ---------------------------------------------------------------------------
 # Ingest tab
@@ -66,5 +104,25 @@ with tab_ingest:
         if not ingest_file or not ingest_text:
             st.error("Both a file and a description are required.")
         else:
-            # TODO: implement ingest call to POST /ingest
-            st.warning("Ingest endpoint integration not yet implemented.")
+            with st.spinner("Ingesting..."):
+                form_data = {"text": ingest_text}
+                if ingest_sample_id:
+                    form_data["sample_id"] = ingest_sample_id
+                try:
+                    resp = requests.post(
+                        f"{API_BASE_URL}/ingest",
+                        headers=HEADERS,
+                        data=form_data,
+                        files={"file": (ingest_file.name, ingest_file.getvalue(), "application/octet-stream")},
+                        timeout=120,
+                    )
+                    resp.raise_for_status()
+                    result = resp.json()
+                    st.success(
+                        f"Ingested `{result['filename']}` as `{result['sample_id']}` "
+                        f"using model `{result['model_version']}`."
+                    )
+                except requests.HTTPError as e:
+                    st.error(f"API error {e.response.status_code}: {e.response.text}")
+                except requests.RequestException as e:
+                    st.error(f"Could not reach API at {API_BASE_URL}: {e}")
