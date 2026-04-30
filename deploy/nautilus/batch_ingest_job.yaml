@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: ingestion
-          image: registry.nrp-nautilus.io/gvelard2/afm-app:gpu
+          image: ghcr.io/gvelard2/afm-app:gpu
           imagePullPolicy: Always
           # Uses --csv mode so each file gets its own description from corpus_descriptions.csv
           command:
