@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: afm-ui
+  namespace: gvelard2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: afm-ui
+  template:
+    metadata:
+      labels:
+        app: afm-ui
+    spec:
+      containers:
+        - name: streamlit
+          image: registry.nrp-nautilus.io/gvelard2/afm-app:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "streamlit", "run", "ui/app.py",
+                    "--server.port", "8501", "--server.address", "0.0.0.0",
+                    "--server.headless", "true"]
+          ports:
+            - containerPort: 8501
+          env:
+            - name: API_BASE_URL
+              value: "http://afm-api:8000"    # internal cluster DNS to the API service
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: afm-secrets
+                  key: api-key
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "300m"      # 20% above 250m
+              memory: "614Mi"  # 20% above 512Mi
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: afm-ui
+  namespace: gvelard2
+spec:
+  selector:
+    app: afm-ui
+  ports:
+    - port: 8501
+      targetPort: 8501
+  type: ClusterIP

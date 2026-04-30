@@ -11,13 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-# torch is already present in the base image — install the rest
-RUN pip install --no-cache-dir \
-    fastapi uvicorn[standard] pydantic pydantic-settings \
-    sqlalchemy asyncpg pgvector \
-    transformers open_clip_torch Pillow \
-    igor2 afmformats \
-    numpy scipy
+# torch is already present in the base image; requirements.txt intentionally
+# omits it, so pip installs only the remaining dependencies.
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 

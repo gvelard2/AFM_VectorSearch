@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: afm-batch-ingest
-  namespace: your-namespace   # <-- replace with your Nautilus namespace
+  namespace: gvelard2
 spec:
   backoffLimit: 2
   template:
@@ -10,44 +10,41 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: ingestion
-          image: ghcr.io/<your-org>/afm-search-ingestion:latest
+          image: registry.nrp-nautilus.io/gvelard2/afm-app:gpu
           imagePullPolicy: Always
+          # Uses --csv mode so each file gets its own description from corpus_descriptions.csv
           command:
             - python
             - -m
             - ingestion.run
-            - --batch-dir
-            - /data
-            - --text
-            - "$(SAMPLE_TEXT)"
+            - --csv
+            - corpus_descriptions.csv
+            - --data-dir
+            - Data/
           env:
-            - name: SAMPLE_TEXT
-              value: "SrTiO3 thin film on STO substrate"   # override per job
             - name: DB_URL
               valueFrom:
                 secretKeyRef:
-                  name: afm-search-secrets
+                  name: afm-secrets
                   key: db-url
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: afm-secrets
+                  key: api-key
             - name: MODEL_NAME
-              value: microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
+              value: "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
             - name: MODEL_VERSION
               value: "1.0.0"
           resources:
-            limits:
-              nvidia.com/gpu: 1
-              memory: 16Gi
-              cpu: "4"
             requests:
               nvidia.com/gpu: 1
-              memory: 8Gi
-              cpu: "2"
-          volumeMounts:
-            - name: afm-data
-              mountPath: /data
-      volumes:
-        - name: afm-data
-          persistentVolumeClaim:
-            claimName: afm-ceph-pvc   # Ceph-backed PVC — see pvc-ceph.yaml
+              cpu: "4"
+              memory: "8Gi"
+            limits:
+              nvidia.com/gpu: 1   # GPU: requests must equal limits
+              cpu: "4800m"        # 20% above 4 cores
+              memory: "9830Mi"    # 20% above 8Gi
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists

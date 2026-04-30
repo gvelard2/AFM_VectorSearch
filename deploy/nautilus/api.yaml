@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: afm-api
+  namespace: gvelard2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: afm-api
+  template:
+    metadata:
+      labels:
+        app: afm-api
+    spec:
+      containers:
+        - name: api
+          image: registry.nrp-nautilus.io/gvelard2/afm-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: afm-secrets
+                  key: db-url
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: afm-secrets
+                  key: api-key
+            - name: MODEL_NAME
+              value: "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
+            - name: MODEL_VERSION
+              value: "1.0.0"
+            - name: IMAGE_WEIGHT
+              value: "0.6"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "2400m"      # 20% above 2 cores
+              memory: "4915Mi"  # 20% above 4Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60   # model download on first start
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: afm-api
+  namespace: gvelard2
+spec:
+  selector:
+    app: afm-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP

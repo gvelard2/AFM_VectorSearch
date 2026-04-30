@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: gvelard2
+spec:
+  accessModes:
+    - ReadWriteOnce          # rook-ceph-block is block storage — single writer only
+  storageClassName: rook-ceph-block
+  resources:
+    requests:
+      storage: 10Gi          # Plenty for the current corpus; expand later if needed

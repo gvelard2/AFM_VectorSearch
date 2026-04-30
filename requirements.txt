@@ -15,6 +15,7 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 python-multipart
+requests
 
 # Database
 sqlalchemy
