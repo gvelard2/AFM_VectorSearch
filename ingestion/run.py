@@ -5,19 +5,20 @@ Usage examples::
     # Ingest a single file
     python -m ingestion.run --file Data/GV0130001.ibw --text "SrTiO3 thin film on STO substrate, tapping mode"
 
+    # Ingest all files from a CSV (one description per file)
+    python -m ingestion.run --csv corpus_descriptions.csv --data-dir Data/
+
     # Batch-ingest a directory (all files share the same description)
     python -m ingestion.run --batch-dir Data/ --text "SrTiO3 on STO substrate"
 
     # Dry run — parse and preprocess only, no embedding or DB write
-    python -m ingestion.run --file Data/GV0130001.ibw --text "test" --dry-run
-
-Note on batch mode: all files in --batch-dir receive the same --text description.
-For files with distinct descriptions, run --file once per file with its own --text.
+    python -m ingestion.run --csv corpus_descriptions.csv --data-dir Data/ --dry-run
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import sys
 from pathlib import Path
 
@@ -32,16 +33,44 @@ def _derive_sample_id(path: Path) -> str:
     return path.stem
 
 
+def _load_csv(csv_path: Path, data_dir: Path) -> list[tuple[Path, str]]:
+    """Read corpus_descriptions.csv and return (file_path, description) pairs.
+
+    Args:
+        csv_path: Path to the CSV file (columns: filename, description).
+        data_dir: Directory where the .ibw files live.
+
+    Returns:
+        List of (resolved_path, description) tuples for rows where the file exists.
+        Rows whose file cannot be found are skipped with a warning.
+    """
+    pairs: list[tuple[Path, str]] = []
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            filename = row["filename"].strip()
+            description = row["description"].strip()
+            if not description:
+                print(f"  WARNING: no description for {filename} — skipping", file=sys.stderr)
+                continue
+            file_path = data_dir / filename
+            if not file_path.exists():
+                print(f"  WARNING: file not found: {file_path} — skipping", file=sys.stderr)
+                continue
+            pairs.append((file_path, description))
+    return pairs
+
+
 def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     """Ingest a single .ibw file through the full pipeline.
 
     Steps:
-        1. Parse .ibw → height array + raw metadata dict
-        2. Preprocess array → 224×224 RGB PIL image
+        1. Parse .ibw -> height array + raw metadata dict
+        2. Preprocess array -> 224x224 RGB PIL image
         3. (dry_run stops here)
         4. Embed image + text via BiomedCLIP
         5. Fuse embeddings (60/40 image/text)
-        6. Extract structured metadata via MatBERT NER
+        6. Extract structured metadata via MatSciBERT NER
         7. Build record dict
         8. Upsert into pgvector database
 
@@ -56,13 +85,13 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     """
     from api.core.config import settings
 
-    # ── Step 1: Parse ────────────────────────────────────────────────────────
+    # Step 1: Parse
     print(f"  [1/6] Parsing {path.name} ...")
     array, ibw_meta = parse_ibw(path)
-    print(f"        array shape={array.shape}, dtype={array.dtype}")
-    print(f"        metadata fields: {len(ibw_meta)}")
+    print(f"        array shape={array.shape}, dtype={array.dtype}, "
+          f"metadata fields={len(ibw_meta)}")
 
-    # ── Step 2: Preprocess ───────────────────────────────────────────────────
+    # Step 2: Preprocess
     print("  [2/6] Preprocessing height map ...")
     image = preprocess(array)
     print(f"        PIL image: {image.size}, mode={image.mode}")
@@ -71,17 +100,18 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
         print("  [dry-run] Skipping embed + DB write. Done.")
         return
 
-    # ── Step 3: Embed ────────────────────────────────────────────────────────
-    print("  [3/6] Loading encoder and embedding ...")
+    # Step 3: Embed
+    print("  [3/6] Embedding ...")
     from services.encoder import get_encoder
     encoder = get_encoder()
-    img_vec  = encoder.embed_image(image)
-    txt_vec  = encoder.embed_text(text)
-    fused    = encoder.fuse(img_vec, txt_vec)
-    sim      = float(__import__("numpy").dot(img_vec, txt_vec))
+    img_vec = encoder.embed_image(image)
+    txt_vec = encoder.embed_text(text)
+    fused   = encoder.fuse(img_vec, txt_vec)
+    import numpy as np
+    sim = float(np.dot(img_vec, txt_vec))
     print(f"        image-text cosine similarity: {sim:.4f}")
 
-    # ── Step 4: NER metadata extraction ─────────────────────────────────────
+    # Step 4: NER metadata extraction
     print("  [4/6] Extracting NER metadata ...")
     try:
         from ingestion.ner import extract_metadata
@@ -93,7 +123,7 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
         print("        Falling back to raw-text-only metadata.")
         metadata = AFMMetadata(raw_text=text)
 
-    # ── Step 5: Build record ─────────────────────────────────────────────────
+    # Step 5: Build record
     print("  [5/6] Building record ...")
     sample_id = _derive_sample_id(path)
     record = build_record(
@@ -104,7 +134,7 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
         model_version=settings.MODEL_NAME,
     )
 
-    # ── Step 6: Upsert into pgvector ─────────────────────────────────────────
+    # Step 6: Upsert
     print("  [6/6] Writing to database ...")
     from services.vector_store import VectorStore
     store = VectorStore(settings.DB_URL)
@@ -128,14 +158,29 @@ def _build_parser() -> argparse.ArgumentParser:
         "--batch-dir",
         type=Path,
         metavar="DIR",
-        help="Directory to scan recursively for .ibw files.",
+        help="Directory to scan recursively for .ibw files (all share --text).",
+    )
+    source.add_argument(
+        "--csv",
+        type=Path,
+        metavar="CSV",
+        help=(
+            "Path to a CSV file with columns 'filename' and 'description'. "
+            "Each file gets its own description. Use with --data-dir."
+        ),
     )
     parser.add_argument(
         "--text",
         type=str,
-        required=True,
         metavar="TEXT",
-        help="Free-text description of the sample (used for NER and text embedding).",
+        help="Free-text description (required for --file and --batch-dir).",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=Path("Data"),
+        metavar="DIR",
+        help="Base directory containing .ibw files listed in --csv (default: Data/).",
     )
     parser.add_argument(
         "--dry-run",
@@ -149,24 +194,47 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    if args.file is not None:
-        paths = [args.file]
-    else:
+    # Build list of (path, description) pairs depending on input mode
+    if args.csv is not None:
+        if not args.csv.exists():
+            print(f"CSV file not found: {args.csv}", file=sys.stderr)
+            return 1
+        pairs = _load_csv(args.csv, args.data_dir)
+        if not pairs:
+            print("No valid entries found in CSV.", file=sys.stderr)
+            return 1
+
+    elif args.file is not None:
+        if args.text is None:
+            print("--text is required when using --file.", file=sys.stderr)
+            return 1
+        pairs = [(args.file, args.text)]
+
+    else:  # --batch-dir
+        if args.text is None:
+            print("--text is required when using --batch-dir.", file=sys.stderr)
+            return 1
         paths = sorted(args.batch_dir.rglob("*.ibw"))
         if not paths:
             print(f"No .ibw files found in {args.batch_dir}", file=sys.stderr)
             return 1
+        pairs = [(p, args.text) for p in paths]
 
-    total = len(paths)
-    for i, path in enumerate(paths, 1):
-        print(f"\n[{i}/{total}] {path}")
+    # Run ingestion
+    total = len(pairs)
+    failed = 0
+    for i, (path, text) in enumerate(pairs, 1):
+        print(f"\n[{i}/{total}] {path.name}")
+        print(f"  Description: {text[:80]}{'...' if len(text) > 80 else ''}")
         try:
-            ingest_file(path, args.text, dry_run=args.dry_run)
-            print(f"  OK")
+            ingest_file(path, text, dry_run=args.dry_run)
+            print("  OK")
         except Exception as exc:
             print(f"  FAILED: {exc}", file=sys.stderr)
+            failed += 1
 
-    return 0
+    print(f"\nDone. {total - failed}/{total} files ingested successfully.")
+    return 0 if failed == 0 else 1
 
 
 if __name__ == "__main__":

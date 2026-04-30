@@ -229,6 +229,19 @@ class VectorStore:
 
         return [dict(row) for row in rows]
 
+    def get(self, sample_id: str) -> dict | None:
+        """Return a single scan record by sample_id, or None if not found."""
+        query = """
+            SELECT sample_id, filename, model_version,
+                   material, substrate, technique, scan_size_um, raw_text, created_at
+            FROM afm_scans WHERE sample_id = %s
+        """
+        with self._connect() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(query, (sample_id,))
+                row = cur.fetchone()
+        return dict(row) if row else None
+
     def delete(self, sample_id: str) -> None:
         """Delete a scan record by sample_id.
 
@@ -303,6 +316,13 @@ class VectorStoreMock:
             {k: v for k, v in rec.items() if k != "embedding"} | {"score": score}
             for score, rec in scores[:top_k]
         ]
+
+    def get(self, sample_id: str) -> dict | None:
+        """Return a single record by sample_id, or None if not found."""
+        for record in self._records:
+            if record["sample_id"] == sample_id:
+                return {k: v for k, v in record.items() if k != "embedding"}
+        return None
 
     def delete(self, sample_id: str) -> None:
         """Delete a record by sample_id."""

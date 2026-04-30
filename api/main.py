@@ -10,10 +10,11 @@ All other endpoints require an ``X-API-Key`` header matching ``settings.API_KEY`
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.core.config import settings
+from api.core.deps import verify_api_key
 from api.routers import ingest, search
 
 app = FastAPI(
@@ -33,8 +34,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(ingest.router, prefix="/ingest", tags=["ingestion"])
-app.include_router(search.router, tags=["search"])
+app.include_router(
+    ingest.router,
+    prefix="/ingest",
+    tags=["ingestion"],
+    dependencies=[Depends(verify_api_key)],
+)
+app.include_router(
+    search.router,
+    tags=["search"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @app.get("/health", tags=["health"])
