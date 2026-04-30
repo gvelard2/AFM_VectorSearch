@@ -6,15 +6,8 @@ shell environment. Example .env::
     DB_URL=postgresql+asyncpg://user:pass@localhost:5432/afm
     MODEL_NAME=microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
     MODEL_VERSION=1.0.0
-    NER_MODEL_NAME=lbnlp/MatBERT-pretrained-512
+    NER_MODEL_NAME=m3rg-iitd/matscibert
     API_KEY=changeme
-
-NER_MODEL_NAME note
--------------------
-The default ``lbnlp/MatBERT-pretrained-512`` is the LBNL CEDER group's
-pretrained base checkpoint. For NER you need a fine-tuned token-classification
-checkpoint. Check https://huggingface.co/lbnlp for the correct model ID and
-update NER_MODEL_NAME in your .env accordingly.
 """
 
 from __future__ import annotations
@@ -32,9 +25,11 @@ class Settings(BaseSettings):
     MODEL_NAME: str = "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
     MODEL_VERSION: str = "1.0.0"
 
-    # LBNL CEDER MatBERT NER model
-    # NOTE: replace with the fine-tuned NER checkpoint from https://huggingface.co/lbnlp
-    NER_MODEL_NAME: str = "lbnlp/MatBERT-pretrained-512"
+    # MatSciBERT NER model (m3rg-iitd/matscibert)
+    # Fine-tuned for materials science token classification.
+    # Entity labels: MAT (material), SPL (substrate/sample), CMT (technique),
+    # DSC (descriptor), PRO (property), SMT (symmetry/phase), APL (application)
+    NER_MODEL_NAME: str = "m3rg-iitd/matscibert"
 
     # Search defaults
     IMAGE_WEIGHT: float = 0.6  # text weight = 1 - IMAGE_WEIGHT
