@@ -8,8 +8,8 @@ first similarity search.
 
 ```bash
 # Fork on GitHub, then:
-git clone https://github.com/<your-org>/afm-search.git
-cd afm-search
+git clone https://github.com/<your-org>/AFM_VectorSearch.git
+cd AFM_VectorSearch
 ```
 
 ## Step 2 — Configure your environment
@@ -69,13 +69,19 @@ pre-commit install
 
 ## Step 5 — Ingest your data
 
-Drop your `.ibw` files into `data/` and run:
+Drop your `.ibw` files into `Data/` and create a `corpus_descriptions.csv` with
+columns `filename` and `description`, then run:
 
 ```bash
-python -m ingestion.run --batch-dir data/ --text "your sample description"
+python -m ingestion.run --csv corpus_descriptions.csv --data-dir Data/
 ```
 
-For large datasets, use the Kubernetes batch job (see Step 7).
+For a quick single-file test:
+```bash
+python -m ingestion.run --file Data/myscan.ibw --text "SrTiO3 thin film, tapping mode"
+```
+
+For large datasets, use the Kubernetes GPU batch job (see Step 7).
 
 ## Step 6 — Run locally
 
@@ -93,21 +99,33 @@ UI: http://localhost:8501
 
 ## Step 7 — Deploy on Nautilus NRP (optional)
 
-1. Push your Docker images to a registry accessible from Nautilus:
+1. Build and push Docker images:
    ```bash
-   docker build -f deploy/Dockerfile.ingestion -t ghcr.io/<your-org>/afm-search-ingestion .
-   docker push ghcr.io/<your-org>/afm-search-ingestion
+   docker build -f deploy/Dockerfile.api -t ghcr.io/<your-org>/afm-app:latest .
+   docker push ghcr.io/<your-org>/afm-app:latest
+
+   docker build -f deploy/Dockerfile.ingestion -t ghcr.io/<your-org>/afm-app:gpu .
+   docker push ghcr.io/<your-org>/afm-app:gpu
    ```
-2. Create a K8s Secret for your DB credentials:
+2. Update image names in `deploy/nautilus/*.yaml` to match your registry.
+3. Create a K8s Secret:
    ```bash
-   kubectl create secret generic afm-search-secrets \
-     --from-literal=db-url="postgresql+asyncpg://..."
+   kubectl create secret generic afm-secrets \
+     --from-literal=db-user=afm \
+     --from-literal=db-password=<password> \
+     --from-literal=db-url="postgresql+asyncpg://afm:<password>@postgres:5432/afm" \
+     --from-literal=api-key=<api-key> \
+     --namespace=<your-namespace>
    ```
-3. Edit `deploy/nautilus/batch_ingest_job.yaml` — set your namespace and PVC name.
-4. Submit the job:
+4. Apply all manifests:
    ```bash
-   kubectl apply -f deploy/nautilus/batch_ingest_job.yaml
+   kubectl apply -f deploy/nautilus/pvc.yaml
+   kubectl apply -f deploy/nautilus/postgres.yaml
+   kubectl apply -f deploy/nautilus/api.yaml
+   kubectl apply -f deploy/nautilus/streamlit.yaml
+   kubectl apply -f deploy/nautilus/ingress.yaml
    ```
+5. Update `deploy/nautilus/ingress.yaml` with your desired hostname before applying.
 
 ## Step 8 — Customise the embedding model
 

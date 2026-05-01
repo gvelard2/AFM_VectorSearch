@@ -75,12 +75,17 @@ fused = fused / ||fused||
 ## Deployment topology
 
 ```
-Local dev:   docker compose up  →  postgres (pgvector) + api + streamlit
+Local dev:   docker compose -f deploy/docker-compose.yml up
+             →  postgres (pgvector) + api (port 8000) + streamlit (port 8501)
 
-Kubernetes:  Helm chart         →  Deployment(api) + Service
-                                   Job(ingestion, GPU)
-                                   PVC (Ceph, ReadWriteMany)
+Nautilus NRP (namespace: gvelard2):
+             deploy/nautilus/pvc.yaml        →  10Gi Ceph RBD PVC (postgres-pvc)
+             deploy/nautilus/postgres.yaml   →  Deployment(postgres) + ClusterIP Service
+             deploy/nautilus/api.yaml        →  Deployment(afm-api) + ClusterIP Service
+             deploy/nautilus/streamlit.yaml  →  Deployment(afm-ui) + ClusterIP Service
+             deploy/nautilus/ingress.yaml    →  Ingress → afm-search.nrp-nautilus.io
+             deploy/nautilus/batch_ingest_job.yaml  →  GPU Job (nvidia.com/gpu: 1)
 
-Nautilus NRP: batch_ingest_job.yaml  →  K8s Job requesting nvidia.com/gpu: 1
-                                        mounts Ceph PVC at /data
+Images:  ghcr.io/gvelard2/afm-app:latest  (CPU — API + Streamlit)
+         ghcr.io/gvelard2/afm-app:gpu     (CUDA — batch ingestion jobs)
 ```

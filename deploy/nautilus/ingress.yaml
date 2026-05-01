@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: afm-ui-ingress
+  namespace: gvelard2
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: haproxy
+  tls:
+    - hosts:
+        - afm-search.nrp-nautilus.io
+  rules:
+    - host: afm-search.nrp-nautilus.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: afm-ui
+                port:
+                  number: 8501
