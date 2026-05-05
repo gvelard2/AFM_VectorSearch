@@ -35,6 +35,7 @@ afmformats
 # Numerics
 numpy
 scipy
+matplotlib
 
 # UI
 streamlit
