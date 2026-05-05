@@ -12,6 +12,15 @@ Environment variables:
 from __future__ import annotations
 
 import os
+import sys
+import tempfile
+from pathlib import Path
+
+# Ensure the project root is on sys.path so ingestion/services are importable
+# regardless of which directory Streamlit is launched from.
+_ROOT = Path(__file__).parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 import requests
 import streamlit as st
@@ -28,9 +37,31 @@ tab_search, tab_ingest = st.tabs(["Search", "Ingest"])
 # ---------------------------------------------------------------------------
 # Search tab
 # ---------------------------------------------------------------------------
+def _ibw_preview(uploaded_file) -> None:
+    """Render a viridis height-map preview for an uploaded .ibw file."""
+    from ingestion.parsers.ibw import parse_ibw
+    from ingestion.preprocessing import preprocess
+    with tempfile.NamedTemporaryFile(suffix=".ibw", delete=False) as tmp:
+        tmp.write(uploaded_file.getvalue())
+        tmp_path = Path(tmp.name)
+    try:
+        array, _ = parse_ibw(tmp_path)
+        image = preprocess(array)
+        st.image(image, caption=f"Height Map — {uploaded_file.name}", use_container_width=True)
+    except Exception as e:
+        st.warning(f"Could not render preview: {e}")
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
 with tab_search:
     st.header("Search the corpus")
-    query_file = st.file_uploader("Upload a query .ibw file (optional)", type=["ibw"])
+    upload_col, preview_col = st.columns([2, 1])
+    with upload_col:
+        query_file = st.file_uploader("Upload a query .ibw file (optional)", type=["ibw"])
+    with preview_col:
+        if query_file:
+            _ibw_preview(query_file)
     query_text = st.text_area(
         "Describe your sample (optional)",
         placeholder="e.g. SrTiO3 thin film on STO substrate, PFM lateral",
@@ -94,7 +125,7 @@ with tab_search:
                 for hit in results:
                     meta = hit["metadata"]
                     with st.expander(f"{hit['sample_id']}  —  score {hit['score']:.4f}"):
-                        col1, col2, col3 = st.columns(3)
+                        col1, col2, col3, col_img = st.columns([2, 2, 2, 1])
                         with col1:
                             st.markdown(f"**Filename:** `{hit['filename']}`")
                             st.markdown(f"**Score:** `{hit['score']:.4f}`")
@@ -119,6 +150,18 @@ with tab_search:
                             st.markdown(f"**Drive amp:** {meta.get('drive_amplitude_v') or '—'} V")
                             st.markdown(f"**Spring const:** {meta.get('spring_constant') or '—'} N/m")
                             st.markdown(f"**Tip voltage:** {meta.get('tip_voltage_v') or '—'} V")
+                        with col_img:
+                            img_resp = requests.get(
+                                f"{API_BASE_URL}/sample/{hit['sample_id']}/image",
+                                headers=HEADERS,
+                                timeout=10,
+                            )
+                            if img_resp.status_code == 200:
+                                st.image(
+                                    img_resp.content,
+                                    caption=f"Height Map — {hit['filename']}",
+                                    use_container_width=True,
+                                )
                         st.caption(meta.get("raw_text", ""))
             elif results is not None:
                 st.info("No results returned.")

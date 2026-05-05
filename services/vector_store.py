@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS afm_scans (
     tip_voltage_v      REAL,
     instrument_model   TEXT,
     scan_date          TEXT,
+    image_png          BYTEA,
     created_at         TIMESTAMPTZ DEFAULT now()
 )
 """
@@ -114,6 +115,7 @@ ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS spring_constant    REAL;
 ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS tip_voltage_v      REAL;
 ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS instrument_model   TEXT;
 ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS scan_date          TEXT;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS image_png          BYTEA;
 """
 
 _CREATE_INDEX = """
@@ -128,13 +130,13 @@ INSERT INTO afm_scans
      material, substrate, technique, scan_size_um, raw_text,
      scan_rate_hz, scan_angle_deg, scan_lines, scan_points,
      drive_frequency_hz, drive_amplitude_v, spring_constant,
-     tip_voltage_v, instrument_model, scan_date)
+     tip_voltage_v, instrument_model, scan_date, image_png)
 VALUES
     (%(sample_id)s, %(filename)s, %(model_version)s, %(embedding)s,
      %(material)s, %(substrate)s, %(technique)s, %(scan_size_um)s, %(raw_text)s,
      %(scan_rate_hz)s, %(scan_angle_deg)s, %(scan_lines)s, %(scan_points)s,
      %(drive_frequency_hz)s, %(drive_amplitude_v)s, %(spring_constant)s,
-     %(tip_voltage_v)s, %(instrument_model)s, %(scan_date)s)
+     %(tip_voltage_v)s, %(instrument_model)s, %(scan_date)s, %(image_png)s)
 ON CONFLICT (sample_id) DO UPDATE SET
     filename           = EXCLUDED.filename,
     model_version      = EXCLUDED.model_version,
@@ -153,7 +155,8 @@ ON CONFLICT (sample_id) DO UPDATE SET
     spring_constant    = EXCLUDED.spring_constant,
     tip_voltage_v      = EXCLUDED.tip_voltage_v,
     instrument_model   = EXCLUDED.instrument_model,
-    scan_date          = EXCLUDED.scan_date
+    scan_date          = EXCLUDED.scan_date,
+    image_png          = EXCLUDED.image_png
 """
 
 
@@ -254,6 +257,7 @@ class VectorStore:
             "tip_voltage_v":      metadata.get("tip_voltage_v"),
             "instrument_model":   metadata.get("instrument_model"),
             "scan_date":          metadata.get("scan_date"),
+            "image_png":          metadata.get("image_png"),
         }
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -323,6 +327,17 @@ class VectorStore:
                 cur.execute(query, (sample_id,))
                 row = cur.fetchone()
         return dict(row) if row else None
+
+    def get_image(self, sample_id: str) -> bytes | None:
+        """Return the stored PNG bytes for a sample, or None if not found."""
+        query = "SELECT image_png FROM afm_scans WHERE sample_id = %s"
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (sample_id,))
+                row = cur.fetchone()
+        if row is None or row[0] is None:
+            return None
+        return bytes(row[0])
 
     def delete(self, sample_id: str) -> None:
         """Delete a scan record by sample_id.

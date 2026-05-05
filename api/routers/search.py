@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from api.core.deps import EncoderDep, VectorStoreDep
 from api.models.schemas import AFMMetadata, SearchHit, SearchResponse
@@ -113,3 +113,22 @@ async def get_sample(
     if row.get("created_at") is not None:
         row["created_at"] = row["created_at"].isoformat()
     return JSONResponse(content=row)
+
+
+@router.get("/sample/{sample_id}/image")
+async def get_sample_image(
+    sample_id: str,
+    store: VectorStoreDep,
+) -> Response:
+    """Return the stored PNG height-map image for a sample.
+
+    Raises:
+        HTTPException 404: If the sample does not exist or has no stored image.
+    """
+    png_bytes = store.get_image(sample_id)
+    if png_bytes is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No image found for sample '{sample_id}'",
+        )
+    return Response(content=png_bytes, media_type="image/png")

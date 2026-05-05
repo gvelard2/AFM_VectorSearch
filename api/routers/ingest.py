@@ -70,6 +70,7 @@ async def ingest_scan(
             metadata=metadata,
             filename=file.filename,
             model_version=settings.MODEL_NAME,
+            image=image,
         )
         store.upsert(fused, record)
     finally:

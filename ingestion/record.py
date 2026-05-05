@@ -7,7 +7,10 @@ the embedding. It maps 1-to-1 with a row in the ``afm_scans`` pgvector table.
 
 from __future__ import annotations
 
+import io
+
 import numpy as np
+from PIL import Image
 
 from api.models.schemas import AFMMetadata
 
@@ -18,6 +21,7 @@ def build_record(
     metadata: AFMMetadata,
     filename: str,
     model_version: str,
+    image: Image.Image | None = None,
 ) -> dict:
     """Assemble a storable record from an embedding and its metadata.
 
@@ -44,11 +48,17 @@ def build_record(
             f"Expected embedding shape (512,), got {embedding.shape}"
         )
 
+    buf = io.BytesIO()
+    if image is not None:
+        image.save(buf, format="PNG")
+    image_png: bytes | None = buf.getvalue() or None
+
     record = {
         "sample_id":     sample_id,
         "filename":      filename,
         "model_version": model_version,
         "embedding":     embedding.astype(np.float32),
+        "image_png":     image_png,
     }
     record.update(metadata.model_dump())
     return record

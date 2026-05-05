@@ -139,6 +139,7 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
         metadata=metadata,
         filename=path.name,
         model_version=settings.MODEL_NAME,
+        image=image,
     )
 
     # Step 6: Upsert
