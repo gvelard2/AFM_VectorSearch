@@ -40,6 +40,17 @@ with tab_search:
         "Image vs. text weight", min_value=0.0, max_value=1.0, value=0.6, step=0.05
     )
 
+    with st.expander("Filters (optional)"):
+        filter_technique = st.selectbox(
+            "Technique", options=["Any", "AC Mode", "PFM Mode"]
+        )
+        filter_instrument = st.selectbox(
+            "Instrument model", options=["Any", "MFP3D"]
+        )
+        filter_scan_size = st.selectbox(
+            "Scan size (µm)", options=["Any", "1.0", "2.0", "5.0", "10.0"]
+        )
+
     if st.button("Search"):
         if not query_file and not query_text:
             st.error("Provide at least one of: query file or description text.")
@@ -48,6 +59,18 @@ with tab_search:
                 form_data = {"top_k": str(top_k), "image_weight": str(image_weight)}
                 if query_text:
                     form_data["text"] = query_text
+
+                filters: dict = {}
+                if filter_technique != "Any":
+                    filters["technique"] = filter_technique
+                if filter_instrument != "Any":
+                    filters["instrument_model"] = filter_instrument
+                if filter_scan_size != "Any":
+                    filters["scan_size_um"] = float(filter_scan_size)
+                if filters:
+                    import json
+                    form_data["filters"] = json.dumps(filters)
+
                 files = {"file": (query_file.name, query_file.getvalue(), "application/octet-stream")} if query_file else {}
                 try:
                     resp = requests.post(
@@ -71,7 +94,7 @@ with tab_search:
                 for hit in results:
                     meta = hit["metadata"]
                     with st.expander(f"{hit['sample_id']}  —  score {hit['score']:.4f}"):
-                        col1, col2 = st.columns(2)
+                        col1, col2, col3 = st.columns(3)
                         with col1:
                             st.markdown(f"**Filename:** `{hit['filename']}`")
                             st.markdown(f"**Score:** `{hit['score']:.4f}`")
@@ -81,6 +104,11 @@ with tab_search:
                             st.markdown(f"**Substrate:** {meta.get('substrate') or '—'}")
                             st.markdown(f"**Technique:** {meta.get('technique') or '—'}")
                             st.markdown(f"**Scan size:** {meta.get('scan_size_um') or '—'} µm")
+                        with col3:
+                            st.markdown(f"**Instrument:** {meta.get('instrument_model') or '—'}")
+                            st.markdown(f"**Scan date:** {meta.get('scan_date') or '—'}")
+                            st.markdown(f"**Scan lines:** {meta.get('scan_lines') or '—'} px")
+                            st.markdown(f"**Spring constant:** {meta.get('spring_constant') or '—'} N/m")
                         st.caption(meta.get("raw_text", ""))
             elif results is not None:
                 st.info("No results returned.")
