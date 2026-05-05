@@ -111,17 +111,24 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     sim = float(np.dot(img_vec, txt_vec))
     print(f"        image-text cosine similarity: {sim:.4f}")
 
-    # Step 4: NER metadata extraction
-    print("  [4/6] Extracting NER metadata ...")
+    # Step 4: NER metadata extraction + IBW instrument lookup
+    print("  [4/6] Extracting metadata ...")
     try:
         from ingestion.ner import extract_metadata
         metadata = extract_metadata(text)
-        print(f"        material={metadata.material}, substrate={metadata.substrate}, "
+        print(f"        NER — material={metadata.material}, substrate={metadata.substrate}, "
               f"technique={metadata.technique}, scan_size_um={metadata.scan_size_um}")
     except Exception as exc:
         print(f"        WARNING: NER failed ({exc.__class__.__name__}: {exc})")
         print("        Falling back to raw-text-only metadata.")
         metadata = AFMMetadata(raw_text=text)
+
+    # Override/supplement with ground-truth values from the IBW note block
+    from ingestion.instrument_lookup import extract_ibw_fields
+    ibw_fields = extract_ibw_fields(ibw_meta)
+    if ibw_fields:
+        metadata = metadata.model_copy(update=ibw_fields)
+        print(f"        IBW lookup — {', '.join(f'{k}={v}' for k, v in ibw_fields.items())}")
 
     # Step 5: Build record
     print("  [5/6] Building record ...")

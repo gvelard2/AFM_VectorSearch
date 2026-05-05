@@ -80,6 +80,16 @@ async def search_scans(
                 technique=row.get("technique"),
                 scan_size_um=row.get("scan_size_um"),
                 raw_text=row.get("raw_text") or "",
+                scan_rate_hz=row.get("scan_rate_hz"),
+                scan_angle_deg=row.get("scan_angle_deg"),
+                scan_lines=row.get("scan_lines"),
+                scan_points=row.get("scan_points"),
+                drive_frequency_hz=row.get("drive_frequency_hz"),
+                drive_amplitude_v=row.get("drive_amplitude_v"),
+                spring_constant=row.get("spring_constant"),
+                tip_voltage_v=row.get("tip_voltage_v"),
+                instrument_model=row.get("instrument_model"),
+                scan_date=row.get("scan_date"),
             ),
         )
         for row in rows

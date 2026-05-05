@@ -41,3 +41,10 @@ def test_parse_ibw_array_dtype(sample_ibw_path: Path) -> None:
     """Height array should be a floating-point dtype."""
     array, _ = parse_ibw(sample_ibw_path)
     assert np.issubdtype(array.dtype, np.floating)
+
+
+def test_parse_ibw_asylum_keys_present(sample_ibw_path: Path) -> None:
+    """Asylum IBW files should contain the standard instrument note keys."""
+    _, metadata = parse_ibw(sample_ibw_path)
+    for key in ("ScanSize", "ImagingMode", "ScanLines", "ScanPoints", "MicroscopeModel"):
+        assert key in metadata, f"Expected Asylum key {key!r} in IBW metadata"

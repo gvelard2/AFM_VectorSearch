@@ -43,7 +43,7 @@ async def ingest_scan(
 
     try:
         try:
-            array, _ = parse_ibw(tmp_path)
+            array, ibw_meta = parse_ibw(tmp_path)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Failed to parse .ibw: {exc}")
 
@@ -57,6 +57,11 @@ async def ingest_scan(
             metadata = extract_metadata(text)
         except Exception:
             metadata = AFMMetadata(raw_text=text)
+
+        from ingestion.instrument_lookup import extract_ibw_fields
+        ibw_fields = extract_ibw_fields(ibw_meta)
+        if ibw_fields:
+            metadata = metadata.model_copy(update=ibw_fields)
 
         sid = sample_id or Path(file.filename).stem
         record = build_record(

@@ -15,16 +15,26 @@ Two classes are provided:
 Table schema managed by this module::
 
     CREATE TABLE afm_scans (
-        sample_id     TEXT PRIMARY KEY,
-        filename      TEXT NOT NULL,
-        model_version TEXT NOT NULL,
-        embedding     vector(512),
-        material      TEXT,
-        substrate     TEXT,
-        technique     TEXT,
-        scan_size_um  REAL,
-        raw_text      TEXT,
-        created_at    TIMESTAMPTZ DEFAULT now()
+        sample_id          TEXT PRIMARY KEY,
+        filename           TEXT NOT NULL,
+        model_version      TEXT NOT NULL,
+        embedding          vector(512),
+        material           TEXT,
+        substrate          TEXT,
+        technique          TEXT,
+        scan_size_um       REAL,
+        raw_text           TEXT,
+        scan_rate_hz       REAL,
+        scan_angle_deg     REAL,
+        scan_lines         INT,
+        scan_points        INT,
+        drive_frequency_hz REAL,
+        drive_amplitude_v  REAL,
+        spring_constant    REAL,
+        tip_voltage_v      REAL,
+        instrument_model   TEXT,
+        scan_date          TEXT,
+        created_at         TIMESTAMPTZ DEFAULT now()
     );
 
     CREATE INDEX ON afm_scans USING hnsw (embedding vector_cosine_ops)
@@ -51,6 +61,16 @@ _COLUMNS = (
     "technique",
     "scan_size_um",
     "raw_text",
+    "scan_rate_hz",
+    "scan_angle_deg",
+    "scan_lines",
+    "scan_points",
+    "drive_frequency_hz",
+    "drive_amplitude_v",
+    "spring_constant",
+    "tip_voltage_v",
+    "instrument_model",
+    "scan_date",
     "created_at",
 )
 
@@ -58,17 +78,42 @@ _CREATE_EXTENSION = "CREATE EXTENSION IF NOT EXISTS vector"
 
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS afm_scans (
-    sample_id     TEXT PRIMARY KEY,
-    filename      TEXT NOT NULL,
-    model_version TEXT NOT NULL,
-    embedding     vector(512),
-    material      TEXT,
-    substrate     TEXT,
-    technique     TEXT,
-    scan_size_um  REAL,
-    raw_text      TEXT,
-    created_at    TIMESTAMPTZ DEFAULT now()
+    sample_id          TEXT PRIMARY KEY,
+    filename           TEXT NOT NULL,
+    model_version      TEXT NOT NULL,
+    embedding          vector(512),
+    material           TEXT,
+    substrate          TEXT,
+    technique          TEXT,
+    scan_size_um       REAL,
+    raw_text           TEXT,
+    scan_rate_hz       REAL,
+    scan_angle_deg     REAL,
+    scan_lines         INT,
+    scan_points        INT,
+    drive_frequency_hz REAL,
+    drive_amplitude_v  REAL,
+    spring_constant    REAL,
+    tip_voltage_v      REAL,
+    instrument_model   TEXT,
+    scan_date          TEXT,
+    created_at         TIMESTAMPTZ DEFAULT now()
 )
+"""
+
+# Migration: add new columns to existing tables created before v2.
+# ADD COLUMN IF NOT EXISTS is idempotent (PostgreSQL 9.6+).
+_MIGRATE_V2 = """
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS scan_rate_hz       REAL;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS scan_angle_deg     REAL;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS scan_lines         INT;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS scan_points        INT;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS drive_frequency_hz REAL;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS drive_amplitude_v  REAL;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS spring_constant    REAL;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS tip_voltage_v      REAL;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS instrument_model   TEXT;
+ALTER TABLE afm_scans ADD COLUMN IF NOT EXISTS scan_date          TEXT;
 """
 
 _CREATE_INDEX = """
@@ -80,19 +125,35 @@ WITH (m = 16, ef_construction = 64)
 _UPSERT = """
 INSERT INTO afm_scans
     (sample_id, filename, model_version, embedding,
-     material, substrate, technique, scan_size_um, raw_text)
+     material, substrate, technique, scan_size_um, raw_text,
+     scan_rate_hz, scan_angle_deg, scan_lines, scan_points,
+     drive_frequency_hz, drive_amplitude_v, spring_constant,
+     tip_voltage_v, instrument_model, scan_date)
 VALUES
     (%(sample_id)s, %(filename)s, %(model_version)s, %(embedding)s,
-     %(material)s, %(substrate)s, %(technique)s, %(scan_size_um)s, %(raw_text)s)
+     %(material)s, %(substrate)s, %(technique)s, %(scan_size_um)s, %(raw_text)s,
+     %(scan_rate_hz)s, %(scan_angle_deg)s, %(scan_lines)s, %(scan_points)s,
+     %(drive_frequency_hz)s, %(drive_amplitude_v)s, %(spring_constant)s,
+     %(tip_voltage_v)s, %(instrument_model)s, %(scan_date)s)
 ON CONFLICT (sample_id) DO UPDATE SET
-    filename      = EXCLUDED.filename,
-    model_version = EXCLUDED.model_version,
-    embedding     = EXCLUDED.embedding,
-    material      = EXCLUDED.material,
-    substrate     = EXCLUDED.substrate,
-    technique     = EXCLUDED.technique,
-    scan_size_um  = EXCLUDED.scan_size_um,
-    raw_text      = EXCLUDED.raw_text
+    filename           = EXCLUDED.filename,
+    model_version      = EXCLUDED.model_version,
+    embedding          = EXCLUDED.embedding,
+    material           = EXCLUDED.material,
+    substrate          = EXCLUDED.substrate,
+    technique          = EXCLUDED.technique,
+    scan_size_um       = EXCLUDED.scan_size_um,
+    raw_text           = EXCLUDED.raw_text,
+    scan_rate_hz       = EXCLUDED.scan_rate_hz,
+    scan_angle_deg     = EXCLUDED.scan_angle_deg,
+    scan_lines         = EXCLUDED.scan_lines,
+    scan_points        = EXCLUDED.scan_points,
+    drive_frequency_hz = EXCLUDED.drive_frequency_hz,
+    drive_amplitude_v  = EXCLUDED.drive_amplitude_v,
+    spring_constant    = EXCLUDED.spring_constant,
+    tip_voltage_v      = EXCLUDED.tip_voltage_v,
+    instrument_model   = EXCLUDED.instrument_model,
+    scan_date          = EXCLUDED.scan_date
 """
 
 
@@ -147,11 +208,16 @@ class VectorStore:
         finally:
             bootstrap.close()
 
-        # Step 2: now that the vector type exists, create table + index normally
+        # Step 2: now that the vector type exists, create table + index normally,
+        # then run idempotent migration to add any new columns.
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(_CREATE_TABLE)
                 cur.execute(_CREATE_INDEX)
+                for stmt in _MIGRATE_V2.strip().splitlines():
+                    stmt = stmt.strip()
+                    if stmt:
+                        cur.execute(stmt)
             conn.commit()
 
     def upsert(self, embedding: np.ndarray, metadata: dict) -> None:
@@ -169,15 +235,25 @@ class VectorStore:
             raise ValueError(f"Expected embedding shape (512,), got {embedding.shape}")
 
         params = {
-            "sample_id":     metadata["sample_id"],
-            "filename":      metadata["filename"],
-            "model_version": metadata["model_version"],
-            "embedding":     embedding,
-            "material":      metadata.get("material"),
-            "substrate":     metadata.get("substrate"),
-            "technique":     metadata.get("technique"),
-            "scan_size_um":  metadata.get("scan_size_um"),
-            "raw_text":      metadata.get("raw_text"),
+            "sample_id":          metadata["sample_id"],
+            "filename":           metadata["filename"],
+            "model_version":      metadata["model_version"],
+            "embedding":          embedding,
+            "material":           metadata.get("material"),
+            "substrate":          metadata.get("substrate"),
+            "technique":          metadata.get("technique"),
+            "scan_size_um":       metadata.get("scan_size_um"),
+            "raw_text":           metadata.get("raw_text"),
+            "scan_rate_hz":       metadata.get("scan_rate_hz"),
+            "scan_angle_deg":     metadata.get("scan_angle_deg"),
+            "scan_lines":         metadata.get("scan_lines"),
+            "scan_points":        metadata.get("scan_points"),
+            "drive_frequency_hz": metadata.get("drive_frequency_hz"),
+            "drive_amplitude_v":  metadata.get("drive_amplitude_v"),
+            "spring_constant":    metadata.get("spring_constant"),
+            "tip_voltage_v":      metadata.get("tip_voltage_v"),
+            "instrument_model":   metadata.get("instrument_model"),
+            "scan_date":          metadata.get("scan_date"),
         }
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -213,6 +289,9 @@ class VectorStore:
             SELECT
                 sample_id, filename, model_version,
                 material, substrate, technique, scan_size_um, raw_text,
+                scan_rate_hz, scan_angle_deg, scan_lines, scan_points,
+                drive_frequency_hz, drive_amplitude_v, spring_constant,
+                tip_voltage_v, instrument_model, scan_date,
                 created_at,
                 1 - (embedding <=> %s::vector) AS score
             FROM afm_scans
@@ -233,7 +312,10 @@ class VectorStore:
         """Return a single scan record by sample_id, or None if not found."""
         query = """
             SELECT sample_id, filename, model_version,
-                   material, substrate, technique, scan_size_um, raw_text, created_at
+                   material, substrate, technique, scan_size_um, raw_text,
+                   scan_rate_hz, scan_angle_deg, scan_lines, scan_points,
+                   drive_frequency_hz, drive_amplitude_v, spring_constant,
+                   tip_voltage_v, instrument_model, scan_date, created_at
             FROM afm_scans WHERE sample_id = %s
         """
         with self._connect() as conn:
