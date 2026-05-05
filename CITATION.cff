@@ -6,14 +6,14 @@ abstract: >
   combining BiomedCLIP image embeddings, MatBERT NER metadata extraction, and
   PostgreSQL + pgvector for retrieval.
 version: 0.1.0
-date-released: "2025-01-01"
+date-released: "2026-05-05"
 license: MIT
-repository-code: "https://github.com/<your-org>/afm-search"
+repository-code: "https://github.com/gvelard2/AFM_VectorSearch"
 authors:
-  - family-names: "<LastName>"
-    given-names: "<FirstName>"
-    affiliation: "<Institution>"
-    orcid: "https://orcid.org/0000-0000-0000-0000"
+  - family-names: "Velarde"
+    given-names: "Gabe"
+    affiliation: "University of California, Berkeley"
+    orcid: "https://orcid.org/0000-0002-7389-2017"
 keywords:
   - atomic force microscopy
   - similarity search

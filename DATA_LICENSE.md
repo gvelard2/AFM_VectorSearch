@@ -2,8 +2,8 @@
 
 ## Sample dataset
 
-The `.ibw` files included in `data/` were collected at [Your Institution] using a
-[Bruker/Asylum/other] AFM. They are provided as reference inputs for testing the
+The `.ibw` files included in `Data/` were collected at the University of California, Berkeley using an
+Asylum AFM. They are provided as reference inputs for testing the
 ingestion pipeline and are **not** intended as a curated scientific dataset.
 
 ## License for sample data
@@ -15,8 +15,8 @@ appropriate credit is given.
 
 **Suggested citation for the data:**
 
-> [Author(s)], [Year]. AFM Similarity Search — sample dataset. [Institution].
-> Available at: https://github.com/<your-org>/afm-search
+> Velarde, G., 2026. AFM Similarity Search — sample dataset. University of California, Berkeley.
+> Available at: https://github.com/gvelard2/AFM_VectorSearch
 
 ## User-contributed data
 
