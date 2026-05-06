@@ -6,13 +6,11 @@ database connection are required.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
-
-from api.models.schemas import AFMMetadata, SearchHit
 
 
 @pytest.fixture

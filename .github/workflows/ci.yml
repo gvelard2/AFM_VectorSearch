@@ -35,7 +35,7 @@ jobs:
         run: ruff format --check .
 
       - name: Mypy type check
-        run: mypy ingestion services api --ignore-missing-imports
+        run: mypy ingestion services api
 
       - name: Pytest
         run: pytest --tb=short -q

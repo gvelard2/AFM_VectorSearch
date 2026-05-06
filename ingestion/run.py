@@ -88,8 +88,7 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     # Step 1: Parse
     print(f"  [1/6] Parsing {path.name} ...")
     array, ibw_meta = parse_ibw(path)
-    print(f"        array shape={array.shape}, dtype={array.dtype}, "
-          f"metadata fields={len(ibw_meta)}")
+    print(f"        array shape={array.shape}, dtype={array.dtype}, metadata fields={len(ibw_meta)}")
 
     # Step 2: Preprocess
     print("  [2/6] Preprocessing height map ...")
@@ -103,11 +102,13 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     # Step 3: Embed
     print("  [3/6] Embedding ...")
     from services.encoder import get_encoder
+
     encoder = get_encoder()
     img_vec = encoder.embed_image(image)
     txt_vec = encoder.embed_text(text)
-    fused   = encoder.fuse(img_vec, txt_vec)
+    fused = encoder.fuse(img_vec, txt_vec)
     import numpy as np
+
     sim = float(np.dot(img_vec, txt_vec))
     print(f"        image-text cosine similarity: {sim:.4f}")
 
@@ -115,9 +116,12 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     print("  [4/6] Extracting metadata ...")
     try:
         from ingestion.ner import extract_metadata
+
         metadata = extract_metadata(text)
-        print(f"        NER — material={metadata.material}, substrate={metadata.substrate}, "
-              f"technique={metadata.technique}, scan_size_um={metadata.scan_size_um}")
+        print(
+            f"        NER — material={metadata.material}, substrate={metadata.substrate}, "
+            f"technique={metadata.technique}, scan_size_um={metadata.scan_size_um}"
+        )
     except Exception as exc:
         print(f"        WARNING: NER failed ({exc.__class__.__name__}: {exc})")
         print("        Falling back to raw-text-only metadata.")
@@ -125,6 +129,7 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
 
     # Override/supplement with ground-truth values from the IBW note block
     from ingestion.instrument_lookup import extract_ibw_fields
+
     ibw_fields = extract_ibw_fields(ibw_meta)
     if ibw_fields:
         metadata = metadata.model_copy(update=ibw_fields)
@@ -145,6 +150,7 @@ def ingest_file(path: Path, text: str, *, dry_run: bool = False) -> None:
     # Step 6: Upsert
     print("  [6/6] Writing to database ...")
     from services.vector_store import VectorStore
+
     store = VectorStore(settings.DB_URL)
     store.upsert(fused, record)
     print(f"        Stored sample_id={sample_id!r}")

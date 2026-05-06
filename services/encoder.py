@@ -59,9 +59,7 @@ class CLIPEncoder:
         self.device = device
 
         try:
-            self._model, _, self._preprocess = (
-                open_clip.create_model_and_transforms(model_name)
-            )
+            self._model, _, self._preprocess = open_clip.create_model_and_transforms(model_name)
             self._tokenizer = open_clip.get_tokenizer(model_name)
         except Exception as exc:
             raise RuntimeError(

@@ -238,26 +238,26 @@ class VectorStore:
             raise ValueError(f"Expected embedding shape (512,), got {embedding.shape}")
 
         params = {
-            "sample_id":          metadata["sample_id"],
-            "filename":           metadata["filename"],
-            "model_version":      metadata["model_version"],
-            "embedding":          embedding,
-            "material":           metadata.get("material"),
-            "substrate":          metadata.get("substrate"),
-            "technique":          metadata.get("technique"),
-            "scan_size_um":       metadata.get("scan_size_um"),
-            "raw_text":           metadata.get("raw_text"),
-            "scan_rate_hz":       metadata.get("scan_rate_hz"),
-            "scan_angle_deg":     metadata.get("scan_angle_deg"),
-            "scan_lines":         metadata.get("scan_lines"),
-            "scan_points":        metadata.get("scan_points"),
+            "sample_id": metadata["sample_id"],
+            "filename": metadata["filename"],
+            "model_version": metadata["model_version"],
+            "embedding": embedding,
+            "material": metadata.get("material"),
+            "substrate": metadata.get("substrate"),
+            "technique": metadata.get("technique"),
+            "scan_size_um": metadata.get("scan_size_um"),
+            "raw_text": metadata.get("raw_text"),
+            "scan_rate_hz": metadata.get("scan_rate_hz"),
+            "scan_angle_deg": metadata.get("scan_angle_deg"),
+            "scan_lines": metadata.get("scan_lines"),
+            "scan_points": metadata.get("scan_points"),
             "drive_frequency_hz": metadata.get("drive_frequency_hz"),
-            "drive_amplitude_v":  metadata.get("drive_amplitude_v"),
-            "spring_constant":    metadata.get("spring_constant"),
-            "tip_voltage_v":      metadata.get("tip_voltage_v"),
-            "instrument_model":   metadata.get("instrument_model"),
-            "scan_date":          metadata.get("scan_date"),
-            "image_png":          metadata.get("image_png"),
+            "drive_amplitude_v": metadata.get("drive_amplitude_v"),
+            "spring_constant": metadata.get("spring_constant"),
+            "tip_voltage_v": metadata.get("tip_voltage_v"),
+            "instrument_model": metadata.get("instrument_model"),
+            "scan_date": metadata.get("scan_date"),
+            "image_png": metadata.get("image_png"),
         }
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -347,9 +347,7 @@ class VectorStore:
         """
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM afm_scans WHERE sample_id = %s", (sample_id,)
-                )
+                cur.execute("DELETE FROM afm_scans WHERE sample_id = %s", (sample_id,))
                 if cur.rowcount == 0:
                     conn.rollback()
                     raise KeyError(f"No record found with sample_id={sample_id!r}")
@@ -393,10 +391,7 @@ class VectorStoreMock:
         """Return top-k most similar records by cosine similarity."""
         candidates = self._records
         if filters:
-            candidates = [
-                r for r in candidates
-                if all(r.get(k) == v for k, v in filters.items())
-            ]
+            candidates = [r for r in candidates if all(r.get(k) == v for k, v in filters.items())]
 
         if not candidates:
             return []
@@ -409,10 +404,7 @@ class VectorStoreMock:
             scores.append((score, record))
 
         scores.sort(key=lambda x: x[0], reverse=True)
-        return [
-            {k: v for k, v in rec.items() if k != "embedding"} | {"score": score}
-            for score, rec in scores[:top_k]
-        ]
+        return [{k: v for k, v in rec.items() if k != "embedding"} | {"score": score} for score, rec in scores[:top_k]]
 
     def get(self, sample_id: str) -> dict | None:
         """Return a single record by sample_id, or None if not found."""

@@ -81,7 +81,7 @@ def _get_ner_pipeline(model_name: str) -> Pipeline:
         RuntimeError: If the model cannot be downloaded or loaded.
     """
     try:
-        return pipeline(
+        return pipeline(  # type: ignore[call-overload]
             "ner",
             model=model_name,
             aggregation_strategy="simple",

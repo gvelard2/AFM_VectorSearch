@@ -26,6 +26,7 @@ from typing import Callable
 # Converter helpers
 # ---------------------------------------------------------------------------
 
+
 def _float(v: str) -> float | None:
     try:
         return float(v)

@@ -23,12 +23,8 @@ class AFMMetadata(BaseModel):
     # --- NER-extracted fields ---
     material: Optional[str] = Field(None, description="Primary material (e.g. 'SrTiO3')")
     substrate: Optional[str] = Field(None, description="Substrate material (e.g. 'STO')")
-    technique: Optional[str] = Field(
-        None, description="Imaging technique (e.g. 'AC Mode', 'PFM Mode')"
-    )
-    scan_size_um: Optional[float] = Field(
-        None, description="Scan size in micrometres"
-    )
+    technique: Optional[str] = Field(None, description="Imaging technique (e.g. 'AC Mode', 'PFM Mode')")
+    scan_size_um: Optional[float] = Field(None, description="Scan size in micrometres")
     raw_text: str = Field(..., description="Original free-text description")
 
     # --- Instrument lookup table fields (from IBW note block) ---
@@ -71,9 +67,7 @@ class SearchRequest(BaseModel):
     image_weight: float = Field(
         0.6, ge=0.0, le=1.0, description="Weight for image embedding in fusion (text = 1 - image_weight)"
     )
-    filters: Optional[dict] = Field(
-        None, description="Optional SQL metadata filters, e.g. {'material': 'SrTiO3'}"
-    )
+    filters: Optional[dict] = Field(None, description="Optional SQL metadata filters, e.g. {'material': 'SrTiO3'}")
 
 
 class SearchHit(BaseModel):

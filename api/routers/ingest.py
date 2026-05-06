@@ -54,21 +54,24 @@ async def ingest_scan(
 
         try:
             from ingestion.ner import extract_metadata
+
             metadata = extract_metadata(text)
         except Exception:
             metadata = AFMMetadata(raw_text=text)
 
         from ingestion.instrument_lookup import extract_ibw_fields
+
         ibw_fields = extract_ibw_fields(ibw_meta)
         if ibw_fields:
             metadata = metadata.model_copy(update=ibw_fields)
 
-        sid = sample_id or Path(file.filename).stem
+        fname = file.filename or ""
+        sid = sample_id or Path(fname).stem
         record = build_record(
             sample_id=sid,
             embedding=fused,
             metadata=metadata,
-            filename=file.filename,
+            filename=fname,
             model_version=settings.MODEL_NAME,
             image=image,
         )
@@ -78,6 +81,6 @@ async def ingest_scan(
 
     return IngestResponse(
         sample_id=sid,
-        filename=file.filename,
+        filename=fname,
         model_version=settings.MODEL_NAME,
     )

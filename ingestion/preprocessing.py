@@ -84,15 +84,14 @@ def preprocess(array: np.ndarray) -> Image.Image:
     #    Using matplotlib's viridis matches the notebook and improves
     #    contrast for BiomedCLIP which expects colour scientific images.
     import matplotlib
+
     cmap = matplotlib.colormaps["viridis"]
-    rgb_float = cmap(normalised)[:, :, :3]          # drop alpha channel
+    rgb_float = cmap(normalised)[:, :, :3]  # drop alpha channel
     rgb_uint8 = (rgb_float * 255).astype(np.uint8)
     pil_image = Image.fromarray(rgb_uint8, mode="RGB")
 
     # 5. Resize to 224×224
     if pil_image.size != (_CLIP_SIZE, _CLIP_SIZE):
-        pil_image = pil_image.resize(
-            (_CLIP_SIZE, _CLIP_SIZE), resample=Image.BICUBIC
-        )
+        pil_image = pil_image.resize((_CLIP_SIZE, _CLIP_SIZE), resample=Image.Resampling.BICUBIC)
 
     return pil_image

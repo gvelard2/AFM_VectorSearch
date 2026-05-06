@@ -19,10 +19,7 @@ from api.routers import ingest, search
 
 app = FastAPI(
     title="AFM Similarity Search",
-    description=(
-        "Multimodal similarity search over AFM .ibw files using "
-        "BiomedCLIP embeddings and pgvector."
-    ),
+    description=("Multimodal similarity search over AFM .ibw files using BiomedCLIP embeddings and pgvector."),
     version="0.1.0",
 )
 

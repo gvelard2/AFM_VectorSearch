@@ -80,9 +80,18 @@ def test_all_asylum_fields_present(mock_ibw_meta: dict) -> None:
     """All 12 Asylum keys should produce the expected 12 DB columns."""
     fields = extract_ibw_fields(mock_ibw_meta)
     expected = {
-        "scan_size_um", "scan_rate_hz", "scan_angle_deg", "scan_lines",
-        "scan_points", "technique", "drive_frequency_hz", "drive_amplitude_v",
-        "spring_constant", "tip_voltage_v", "instrument_model", "scan_date",
+        "scan_size_um",
+        "scan_rate_hz",
+        "scan_angle_deg",
+        "scan_lines",
+        "scan_points",
+        "technique",
+        "drive_frequency_hz",
+        "drive_amplitude_v",
+        "spring_constant",
+        "tip_voltage_v",
+        "instrument_model",
+        "scan_date",
     }
     assert set(fields.keys()) == expected
 
@@ -90,6 +99,7 @@ def test_all_asylum_fields_present(mock_ibw_meta: dict) -> None:
 def test_real_ibw_file(sample_ibw_path) -> None:
     """extract_ibw_fields should populate key columns from a real .ibw file."""
     from ingestion.parsers.ibw import parse_ibw
+
     _, ibw_meta = parse_ibw(sample_ibw_path)
     fields = extract_ibw_fields(ibw_meta)
     assert "scan_size_um" in fields

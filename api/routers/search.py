@@ -24,7 +24,7 @@ async def search_scans(
     text: str | None = Form(None, description="Free-text query description"),
     top_k: int = Form(5, ge=1, le=100),
     image_weight: float = Form(0.6, ge=0.0, le=1.0),
-    filters: str | None = Form(None, description="JSON-encoded filter dict, e.g. '{\"material\": \"SrTiO3\"}'"),
+    filters: str | None = Form(None, description='JSON-encoded filter dict, e.g. \'{"material": "SrTiO3"}\''),
     file: UploadFile | None = File(None, description="Optional .ibw query image"),
 ) -> SearchResponse:
     """Find the top-k most similar AFM scans.
@@ -63,6 +63,7 @@ async def search_scans(
     elif img_vec is not None:
         query_vec = img_vec
     else:
+        assert txt_vec is not None
         query_vec = txt_vec
 
     filter_dict = json.loads(filters) if filters else None

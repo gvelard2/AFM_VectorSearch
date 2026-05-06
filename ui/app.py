@@ -34,6 +34,7 @@ st.title("AFM Similarity Search")
 
 tab_search, tab_ingest = st.tabs(["Search", "Ingest"])
 
+
 # ---------------------------------------------------------------------------
 # Search tab
 # ---------------------------------------------------------------------------
@@ -41,6 +42,7 @@ def _ibw_preview(uploaded_file) -> None:
     """Render a viridis height-map preview for an uploaded .ibw file."""
     from ingestion.parsers.ibw import parse_ibw
     from ingestion.preprocessing import preprocess
+
     with tempfile.NamedTemporaryFile(suffix=".ibw", delete=False) as tmp:
         tmp.write(uploaded_file.getvalue())
         tmp_path = Path(tmp.name)
@@ -67,20 +69,12 @@ with tab_search:
         placeholder="e.g. SrTiO3 thin film on STO substrate, PFM lateral",
     )
     top_k = st.slider("Number of results", min_value=1, max_value=20, value=5)
-    image_weight = st.slider(
-        "Image vs. text weight", min_value=0.0, max_value=1.0, value=0.6, step=0.05
-    )
+    image_weight = st.slider("Image vs. text weight", min_value=0.0, max_value=1.0, value=0.6, step=0.05)
 
     with st.expander("Filters (optional)"):
-        filter_technique = st.selectbox(
-            "Technique", options=["Any", "AC Mode", "PFM Mode"]
-        )
-        filter_instrument = st.selectbox(
-            "Instrument model", options=["Any", "MFP3D"]
-        )
-        filter_scan_size = st.selectbox(
-            "Scan size (µm)", options=["Any", "1.0", "2.0", "5.0", "10.0"]
-        )
+        filter_technique = st.selectbox("Technique", options=["Any", "AC Mode", "PFM Mode"])
+        filter_instrument = st.selectbox("Instrument model", options=["Any", "MFP3D"])
+        filter_scan_size = st.selectbox("Scan size (µm)", options=["Any", "1.0", "2.0", "5.0", "10.0"])
 
     if st.button("Search"):
         if not query_file and not query_text:
@@ -100,9 +94,12 @@ with tab_search:
                     filters["scan_size_um"] = float(filter_scan_size)
                 if filters:
                     import json
+
                     form_data["filters"] = json.dumps(filters)
 
-                files = {"file": (query_file.name, query_file.getvalue(), "application/octet-stream")} if query_file else {}
+                files = (
+                    {"file": (query_file.name, query_file.getvalue(), "application/octet-stream")} if query_file else {}
+                )
                 try:
                     resp = requests.post(
                         f"{API_BASE_URL}/search",
@@ -177,9 +174,7 @@ with tab_ingest:
         placeholder="e.g. GdScO3 substrate, 5×5 µm scan, contact mode",
         key="ingest_text",
     )
-    ingest_sample_id = st.text_input(
-        "Sample ID (optional — derived from filename if blank)"
-    )
+    ingest_sample_id = st.text_input("Sample ID (optional — derived from filename if blank)")
 
     if st.button("Ingest"):
         if not ingest_file or not ingest_text:

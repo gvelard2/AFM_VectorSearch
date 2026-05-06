@@ -44,9 +44,7 @@ def build_record(
         ValueError: If *embedding* does not have shape ``(512,)``.
     """
     if embedding.shape != (512,):
-        raise ValueError(
-            f"Expected embedding shape (512,), got {embedding.shape}"
-        )
+        raise ValueError(f"Expected embedding shape (512,), got {embedding.shape}")
 
     buf = io.BytesIO()
     if image is not None:
@@ -54,11 +52,11 @@ def build_record(
     image_png: bytes | None = buf.getvalue() or None
 
     record = {
-        "sample_id":     sample_id,
-        "filename":      filename,
+        "sample_id": sample_id,
+        "filename": filename,
         "model_version": model_version,
-        "embedding":     embedding.astype(np.float32),
-        "image_png":     image_png,
+        "embedding": embedding.astype(np.float32),
+        "image_png": image_png,
     }
     record.update(metadata.model_dump())
     return record

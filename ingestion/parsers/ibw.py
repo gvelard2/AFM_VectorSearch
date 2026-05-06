@@ -82,9 +82,7 @@ def parse_ibw(path: Path) -> tuple[np.ndarray, dict]:
             raise ValueError(f"IBW file has 0 channels: {path}")
         height_array = wave_data[:, :, 0].astype(np.float64)
     else:
-        raise ValueError(
-            f"Expected 2-D or 3-D wave data, got shape {wave_data.shape}: {path}"
-        )
+        raise ValueError(f"Expected 2-D or 3-D wave data, got shape {wave_data.shape}: {path}")
 
     metadata = _parse_note(raw_note)
     return height_array, metadata
